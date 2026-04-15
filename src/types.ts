@@ -32,5 +32,10 @@ export const INITIAL_DATA: Category[] = [
     id: 'correctivos',
     name: 'Solicitudes de Correctivos',
     periods: []
+  },
+  {
+    id: 'reuniones',
+    name: 'Reuniones',
+    periods: []
   }
 ];

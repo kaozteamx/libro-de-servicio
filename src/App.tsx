@@ -7,12 +7,14 @@ import { supabase } from './supabase';
 // Constants
 const YEARS = ['2023', '2024', '2025', '2026', '2027', '2028'];
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DAYS = Array.from({length: 31}, (_, i) => (i + 1).toString().padStart(2, '0'));
 
 type ModalState = {
   isOpen: boolean;
   categoryId: string;
   categoryName: string;
   step: 1 | 2;
+  day: string;
   year: string;
   month: string;
   docName: string;
@@ -31,6 +33,7 @@ export default function App() {
     categoryId: '',
     categoryName: '',
     step: 1,
+    day: '01',
     year: '2026',
     month: 'Abril',
     docName: '',
@@ -86,10 +89,24 @@ export default function App() {
           const splitA = a.label.split(' ');
           const splitB = b.label.split(' ');
           if(splitA.length < 2 || splitB.length < 2) return 0;
-          const [monthA, yearA] = splitA;
-          const [monthB, yearB] = splitB;
+          
+          let dayA = 1, monthA, yearA;
+          if (splitA.length === 3) {
+             dayA = parseInt(splitA[0]); monthA = splitA[1]; yearA = splitA[2];
+          } else {
+             monthA = splitA[0]; yearA = splitA[1];
+          }
+          
+          let dayB = 1, monthB, yearB;
+          if (splitB.length === 3) {
+             dayB = parseInt(splitB[0]); monthB = splitB[1]; yearB = splitB[2];
+          } else {
+             monthB = splitB[0]; yearB = splitB[1];
+          }
+          
           if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA);
-          return MONTHS.indexOf(monthB) - MONTHS.indexOf(monthA);
+          if (monthA !== monthB) return MONTHS.indexOf(monthB) - MONTHS.indexOf(monthA);
+          return dayB - dayA;
         });
       });
 
@@ -111,14 +128,17 @@ export default function App() {
   };
 
   const openModal = (categoryId: string, categoryName: string) => {
-    const currentYear = new Date().getFullYear().toString();
-    const currentMonth = MONTHS[new Date().getMonth()];
+    const today = new Date();
+    const currentYear = today.getFullYear().toString();
+    const currentMonth = MONTHS[today.getMonth()];
+    const currentDay = today.getDate().toString().padStart(2, '0');
     
     setModal({
       isOpen: true,
       categoryId,
       categoryName,
       step: 1,
+      day: currentDay,
       year: YEARS.includes(currentYear) ? currentYear : '2026',
       month: currentMonth,
       docName: '',
@@ -147,7 +167,7 @@ export default function App() {
       finalUrl = 'https://' + finalUrl;
     }
 
-    const folderLabel = `${modal.month} ${modal.year}`;
+    const folderLabel = `${modal.day} ${modal.month} ${modal.year}`;
 
     setIsSaving(true);
     const { error } = await supabase.from('service_links').insert([{
@@ -288,14 +308,14 @@ export default function App() {
                 <>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Año</label>
+                      <label>Día</label>
                       <div className="form-select-wrapper">
                         <select 
                           className="form-control"
-                          value={modal.year}
-                          onChange={e => setModal({...modal, year: e.target.value})}
+                          value={modal.day}
+                          onChange={e => setModal({...modal, day: e.target.value})}
                         >
-                          {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                          {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       </div>
                     </div>
@@ -308,6 +328,18 @@ export default function App() {
                           onChange={e => setModal({...modal, month: e.target.value})}
                         >
                           {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Año</label>
+                      <div className="form-select-wrapper">
+                        <select 
+                          className="form-control"
+                          value={modal.year}
+                          onChange={e => setModal({...modal, year: e.target.value})}
+                        >
+                          {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                       </div>
                     </div>
