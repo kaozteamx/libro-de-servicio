@@ -187,7 +187,7 @@ export default function App() {
         </div>
         <div className="header-text">
           <h1>Libro de Servicio</h1>
-          <p>Acceso organizado a solicitudes y reportes (Sincronizado con Supabase)</p>
+          <p>Acceso organizado a solicitudes y reportes</p>
         </div>
       </header>
 
