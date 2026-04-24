@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, FolderOpen, ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, X, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { BookOpen, FolderOpen, ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, X, FileText, Link as LinkIcon, Loader2, LogOut, Settings, Pencil, Download, FileSpreadsheet, File } from 'lucide-react';
 import { INITIAL_DATA } from './types';
 import type { Category, PeriodFolder } from './types';
 import { supabase } from './supabase';
-
+import LoginForm from './components/LoginForm';
+import AdminPanel from './components/AdminPanel';
 // Constants
 const YEARS = ['2023', '2024', '2025', '2026', '2027', '2028'];
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -19,14 +20,27 @@ type ModalState = {
   month: string;
   docName: string;
   url: string;
+  observations: string;
+  mode?: 'create' | 'edit';
+  linkId?: string;
 };
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  
   const [categories, setCategories] = useState<Category[]>(INITIAL_DATA);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedPeriods, setExpandedPeriods] = useState<Record<string, boolean>>({});
   
+  const [exportModal, setExportModal] = useState<{isOpen: boolean, categoryId: string, categoryName: string, periods: PeriodFolder[]}>({
+    isOpen: false,
+    categoryId: '',
+    categoryName: '',
+    periods: []
+  });
+
   // Modal State
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
@@ -37,7 +51,9 @@ export default function App() {
     year: '2026',
     month: 'Abril',
     docName: '',
-    url: ''
+    url: '',
+    observations: '',
+    mode: 'create'
   });
 
   const fetchLinks = async () => {
@@ -79,7 +95,9 @@ export default function App() {
           id: row.id,
           title: row.title,
           url: row.url,
-          createdAt: new Date(row.created_at).getTime()
+          createdAt: new Date(row.created_at).getTime(),
+          folio: row.folio,
+          observations: row.observations
         });
       });
 
@@ -120,8 +138,18 @@ export default function App() {
 
   // Cargar datos inicialmente
   useEffect(() => {
+    const saved = localStorage.getItem('libro_de_servicio_user');
+    if (saved) {
+      setCurrentUser(JSON.parse(saved));
+    }
     fetchLinks();
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('libro_de_servicio_user');
+    setCurrentUser(null);
+    setShowAdminPanel(false);
+  };
 
   const togglePeriod = (id: string) => {
     setExpandedPeriods(prev => ({ ...prev, [id]: !prev[id] }));
@@ -142,7 +170,37 @@ export default function App() {
       year: YEARS.includes(currentYear) ? currentYear : '2026',
       month: currentMonth,
       docName: '',
-      url: ''
+      url: '',
+      observations: '',
+      mode: 'create'
+    });
+  };
+
+  const openEditModal = (record: any, folderLabel: string, categoryId: string, categoryName: string) => {
+    const parts = folderLabel.split(' ');
+    let day = '01', month = 'Enero', year = '2026';
+    if(parts.length === 3) {
+      day = parts[0].padStart(2, '0');
+      month = parts[1];
+      year = parts[2];
+    } else if(parts.length === 2) {
+      month = parts[0];
+      year = parts[1];
+    }
+
+    setModal({
+      isOpen: true,
+      categoryId,
+      categoryName,
+      step: 1, 
+      day,
+      month,
+      year,
+      docName: record.title,
+      url: record.url,
+      observations: record.observations || '',
+      mode: 'edit',
+      linkId: record.id
     });
   };
 
@@ -170,12 +228,27 @@ export default function App() {
     const folderLabel = `${modal.day} ${modal.month} ${modal.year}`;
 
     setIsSaving(true);
-    const { error } = await supabase.from('service_links').insert([{
-      category_id: modal.categoryId,
-      period_label: folderLabel,
-      title: modal.docName.trim(),
-      url: finalUrl
-    }]);
+    let error;
+
+    if (modal.mode === 'edit' && modal.linkId) {
+      const { error: updateError } = await supabase.from('service_links').update({
+        category_id: modal.categoryId,
+        period_label: folderLabel,
+        title: modal.docName.trim(),
+        url: finalUrl,
+        observations: modal.observations
+      }).eq('id', modal.linkId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase.from('service_links').insert([{
+        category_id: modal.categoryId,
+        period_label: folderLabel,
+        title: modal.docName.trim(),
+        url: finalUrl,
+        observations: modal.observations
+      }]);
+      error = insertError;
+    }
 
     if (!error) {
       await fetchLinks();
@@ -199,6 +272,19 @@ export default function App() {
     }
   };
 
+  if (!currentUser) {
+    return (
+      <LoginForm onLogin={(user) => {
+        setCurrentUser(user);
+        localStorage.setItem('libro_de_servicio_user', JSON.stringify(user));
+      }} />
+    );
+  }
+
+  if (showAdminPanel && currentUser.role === 'admin') {
+    return <AdminPanel adminUser={currentUser} onBack={() => setShowAdminPanel(false)} />;
+  }
+
   return (
     <div>
       <header className="app-header">
@@ -208,6 +294,20 @@ export default function App() {
         <div className="header-text">
           <h1>Libro de Servicio</h1>
           <p>Acceso organizado a solicitudes y reportes</p>
+        </div>
+        <div className="header-actions-right" style={{marginLeft: 'auto', display: 'flex', gap: '1rem', alignItems: 'center'}}>
+          <div className="user-badge" style={{display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--card-bg)', padding: '0.5rem 1rem', borderRadius: '30px', border: '1px solid var(--border)'}}>
+            <span style={{color: 'var(--text-light)', fontSize: '13px'}}>Hola, <strong style={{color: 'var(--text)'}}>{currentUser.username}</strong></span>
+            {currentUser.role === 'admin' && <span className="badge" style={{background: 'var(--primary)', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '12px'}}>Admin</span>}
+          </div>
+          {currentUser.role === 'admin' && (
+            <button className="btn-icon" onClick={() => setShowAdminPanel(true)} title="Panel de Administración">
+              <Settings size={20} />
+            </button>
+          )}
+          <button className="btn-icon danger" onClick={handleLogout} title="Cerrar Sesión">
+             <LogOut size={20} />
+          </button>
         </div>
       </header>
 
@@ -228,9 +328,14 @@ export default function App() {
                     <h2>{category.name}</h2>
                     <p>{totalFolders} {totalFolders === 1 ? 'carpeta' : 'carpetas'}</p>
                   </div>
-                  <button className="btn-add" onClick={() => openModal(category.id, category.name)}>
-                    <Plus size={16} /> Agregar enlace
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <button className="btn-icon" onClick={() => setExportModal({isOpen: true, categoryId: category.id, categoryName: category.name, periods: category.periods})} style={{ border: '2px solid var(--border)', borderRadius: '8px', padding: '6px', color: '#e74c3c' }} title="Exportar Documentos">
+                      <Download size={20} />
+                    </button>
+                    <button className="btn-add" onClick={() => openModal(category.id, category.name)}>
+                      <Plus size={16} /> Agregar enlace
+                    </button>
+                  </div>
                 </div>
 
                 {category.periods.length === 0 ? (
@@ -251,6 +356,9 @@ export default function App() {
                             <FolderOpen size={20} color="var(--folder-icon)" strokeWidth={2.5} />
                             <div className="folder-title">
                               {folder.label}
+                              <span className="folder-folios" style={{ marginLeft: '1rem', color: 'var(--primary)', backgroundColor: 'var(--border-dark)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                                Folio(s): {folder.records.filter(r => r.folio).map(r => String(r.folio).padStart(4, '0')).join(', ') || 'N/A'}
+                              </span>
                             </div>
                             <span className="folder-count">{numLinks} {numLinks === 1 ? 'enlace' : 'enlaces'}</span>
                           </div>
@@ -261,11 +369,22 @@ export default function App() {
                                 const displayUrl = record.url.replace(/^https?:\/\/(www\.)?/, '');
                                 return (
                                   <div key={record.id} className="link-item">
-                                    <div className="link-info">
-                                      <div className="link-title">{record.title}</div>
+                                    <div className="link-info" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                      <div className="link-title">
+                                        <span style={{color: 'var(--text-light)', fontWeight: 'bold', marginRight: '0.5rem'}}>#{record.folio ? String(record.folio).padStart(4, '0') : '...'}</span>
+                                        {record.title}
+                                      </div>
                                       <div className="link-url">{displayUrl}</div>
+                                      {record.observations && (
+                                        <div className="link-observations" style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>
+                                          {record.observations}
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="link-actions">
+                                      <button onClick={() => openEditModal(record, folder.label, category.id, category.name)} className="btn-icon" title="Editar">
+                                        <Pencil size={18} />
+                                      </button>
                                       <a href={record.url} target="_blank" rel="noopener noreferrer" className="btn-icon" title="Abrir enlace">
                                         <ExternalLink size={18} />
                                       </a>
@@ -296,7 +415,7 @@ export default function App() {
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <p>{modal.categoryName}</p>
-                <h3>{modal.step === 1 ? 'Seleccionar carpeta' : 'Agregar enlace'}</h3>
+                <h3>{modal.mode === 'edit' ? (modal.step === 1 ? 'Editar fecha' : 'Editar enlace') : (modal.step === 1 ? 'Seleccionar carpeta' : 'Agregar enlace')}</h3>
               </div>
               <button className="btn-icon" onClick={closeModal} disabled={isSaving}>
                 <X size={24} />
@@ -365,7 +484,7 @@ export default function App() {
                       autoFocus
                     />
                   </div>
-                  <div className="form-group" style={{ marginBottom: '2rem' }}>
+                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                     <label><LinkIcon size={16}/> Enlace</label>
                     <input 
                       type="text" 
@@ -374,9 +493,18 @@ export default function App() {
                       value={modal.url}
                       disabled={isSaving}
                       onChange={e => setModal({...modal, url: e.target.value})}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !isSaving) handleSaveLink();
-                      }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '2rem' }}>
+                    <label><FileText size={16}/> Observaciones (Opcional)</label>
+                    <textarea 
+                      className="form-control" 
+                      placeholder="Comentarios, número de ticket, etc."
+                      value={modal.observations}
+                      disabled={isSaving}
+                      onChange={e => setModal({...modal, observations: e.target.value})}
+                      rows={3}
+                      style={{ resize: 'vertical', fontFamily: 'inherit' }}
                     />
                   </div>
                   
@@ -385,11 +513,56 @@ export default function App() {
                       Volver
                     </button>
                     <button className="btn-block btn-dark" onClick={handleSaveLink} disabled={isSaving}>
-                      {isSaving ? 'Guardando...' : 'Guardar enlace'}
+                      {isSaving ? 'Guardando...' : (modal.mode === 'edit' ? 'Guardar cambios' : 'Guardar enlace')}
                     </button>
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {exportModal.isOpen && (
+        <div className="modal-overlay" onClick={() => setExportModal(prev => ({...prev, isOpen: false}))}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <div className="modal-title-wrap">
+                <h3>Exportar "{exportModal.categoryName}"</h3>
+                <p>Selecciona el formato de descarga</p>
+              </div>
+              <button className="btn-icon" onClick={() => setExportModal(prev => ({...prev, isOpen: false}))}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <button 
+                className="btn-block" 
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '1rem', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                onClick={() => {
+                  import('./exportUtils').then(({ exportToPDF }) => {
+                    exportToPDF(exportModal.categoryName, exportModal.periods);
+                    setExportModal(prev => ({...prev, isOpen: false}));
+                  });
+                }}
+              >
+                <File size={20} /> Exportar como PDF
+              </button>
+              
+              <button 
+                className="btn-block" 
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '1rem', backgroundColor: '#27ae60', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                onClick={() => {
+                  import('./exportUtils').then(({ exportToExcel }) => {
+                    exportToExcel(exportModal.categoryName, exportModal.periods);
+                    setExportModal(prev => ({...prev, isOpen: false}));
+                  });
+                }}
+              >
+                <FileSpreadsheet size={20} /> Exportar como Excel (XLSX)
+              </button>
             </div>
           </div>
         </div>

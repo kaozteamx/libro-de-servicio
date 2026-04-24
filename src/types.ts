@@ -3,6 +3,8 @@ export type LinkRecord = {
   title: string;
   url: string;
   createdAt: number;
+  folio?: number;
+  observations?: string;
 };
 
 export type PeriodFolder = {
