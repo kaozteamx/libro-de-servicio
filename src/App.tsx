@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, FolderOpen, ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, X, FileText, Link as LinkIcon, Loader2, LogOut, Settings, Pencil, Download, FileSpreadsheet, File } from 'lucide-react';
+import { BookOpen, FolderOpen, ChevronDown, ChevronRight, Plus, ExternalLink, Trash2, X, FileText, Link as LinkIcon, Loader2, LogOut, Settings, Pencil, Download, FileSpreadsheet, File, Search } from 'lucide-react';
 import { INITIAL_DATA } from './types';
 import type { Category, PeriodFolder } from './types';
 import { supabase } from './supabase';
@@ -34,6 +34,7 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>(INITIAL_DATA);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [expandedPeriods, setExpandedPeriods] = useState<Record<string, boolean>>({});
   
   const [exportModal, setExportModal] = useState<{isOpen: boolean, categoryId: string, categoryName: string, periods: PeriodFolder[]}>({
@@ -401,15 +402,63 @@ export default function App() {
              <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
           </div>
         ) : (
-          categories.map((category) => {
-            const totalFolders = category.periods.length;
-            return (
-              <div key={category.id} className="category-card">
-                <div className="category-header-top">
-                  <div className="category-title-wrap">
-                    <h2>{category.name}</h2>
-                    <p>{totalFolders} {totalFolders === 1 ? 'carpeta' : 'carpetas'}</p>
-                  </div>
+          <>
+            <div className="search-bar-container" style={{ gridColumn: '1 / -1', marginBottom: '1.5rem', position: 'relative' }}>
+              <div className="search-icon" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }}>
+                <Search size={20} />
+              </div>
+              <input 
+                type="text" 
+                placeholder="Buscar por folio, nombre de documento u observaciones..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ width: '100%', padding: '1rem 1rem 1rem 3.5rem', borderRadius: '12px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text)', fontSize: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', outline: 'none' }}
+              />
+            </div>
+            
+            {categories.map((category) => {
+              const lowerQuery = searchQuery.toLowerCase().trim();
+              
+              const filteredFolders = category.periods.filter(folder => {
+                if (!lowerQuery) return true;
+                const folioMatch = folder.records.some(r => r.folio && String(r.folio).includes(lowerQuery));
+                const descMatch = folder.records.some(r => r.folderDescription?.toLowerCase().includes(lowerQuery));
+                const linkMatch = folder.records.some(r => 
+                   r.title.toLowerCase().includes(lowerQuery) || 
+                   (r.observations && r.observations.toLowerCase().includes(lowerQuery)) ||
+                   (r.periodLabel && r.periodLabel.toLowerCase().includes(lowerQuery))
+                );
+                return folioMatch || descMatch || linkMatch;
+              });
+
+              let finalFolders = filteredFolders;
+              if (lowerQuery) {
+                finalFolders = filteredFolders.map(folder => {
+                  const folioMatch = folder.records.some(r => r.folio && String(r.folio).includes(lowerQuery));
+                  const descMatch = folder.records.some(r => r.folderDescription?.toLowerCase().includes(lowerQuery));
+                  if (folioMatch || descMatch) return folder;
+
+                  return {
+                    ...folder,
+                    records: folder.records.filter(r => 
+                      r.title.toLowerCase().includes(lowerQuery) || 
+                      (r.observations && r.observations.toLowerCase().includes(lowerQuery)) ||
+                      (r.periodLabel && r.periodLabel.toLowerCase().includes(lowerQuery))
+                    )
+                  };
+                });
+              }
+
+              const totalFolders = finalFolders.length;
+              if (lowerQuery && totalFolders === 0) return null;
+
+              return (
+                <div key={category.id} className="category-card">
+                  <div className="category-header-top">
+                    <div className="category-title-wrap">
+                      <h2>{category.name}</h2>
+                      <p>{totalFolders} {totalFolders === 1 ? 'carpeta' : 'carpetas'}</p>
+                    </div>
                   <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     <button className="btn-icon" onClick={() => setExportModal({isOpen: true, categoryId: category.id, categoryName: category.name, periods: category.periods})} style={{ border: '2px solid var(--border)', borderRadius: '8px', padding: '6px', color: '#e74c3c' }} title="Exportar Documentos">
                       <Download size={20} />
@@ -420,15 +469,15 @@ export default function App() {
                   </div>
                 </div>
 
-                {category.periods.length === 0 ? (
+                {finalFolders.length === 0 ? (
                   <div className="empty-state">
                     <h3>No hay carpetas todavia</h3>
                     <p>Agrega un enlace para comenzar</p>
                   </div>
                 ) : (
                   <div className="folders-list">
-                    {category.periods.map(folder => {
-                      const isExpanded = expandedPeriods[folder.id];
+                    {finalFolders.map(folder => {
+                      const isExpanded = lowerQuery ? true : expandedPeriods[folder.id];
                       const numLinks = folder.records.length;
                       
                       return (
@@ -567,6 +616,8 @@ export default function App() {
               </div>
             );
           })
+          }
+          </>
         )}
       </main>
 
