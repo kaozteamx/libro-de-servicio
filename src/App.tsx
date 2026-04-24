@@ -113,18 +113,23 @@ export default function App() {
       // Ordenar carpetas
       newCategories.forEach(cat => {
         cat.periods.sort((a, b) => {
+          const folioA = a.records.map(r => r.folio).filter(Boolean).sort((x,y) => (x as number)-(y as number))[0] as number || 0;
+          const folioB = b.records.map(r => r.folio).filter(Boolean).sort((x,y) => (x as number)-(y as number))[0] as number || 0;
+          
+          if (folioA !== folioB) return folioB - folioA; // El más alto arriba (Descendente)
+
           const splitA = a.label.split(' ');
           const splitB = b.label.split(' ');
           if(splitA.length < 2 || splitB.length < 2) return 0;
           
-          let dayA = 1, monthA, yearA;
+          let dayA = 1, monthA = '', yearA = '0';
           if (splitA.length === 3) {
              dayA = parseInt(splitA[0]); monthA = splitA[1]; yearA = splitA[2];
           } else {
              monthA = splitA[0]; yearA = splitA[1];
           }
           
-          let dayB = 1, monthB, yearB;
+          let dayB = 1, monthB = '', yearB = '0';
           if (splitB.length === 3) {
              dayB = parseInt(splitB[0]); monthB = splitB[1]; yearB = splitB[2];
           } else {
