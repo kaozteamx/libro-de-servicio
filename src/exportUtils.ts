@@ -40,6 +40,20 @@ export const exportToPDF = (categoryName: string, periods: PeriodFolder[]) => {
       2: { cellWidth: 50 },
       3: { cellWidth: 50, overflow: 'linebreak' },
       4: { cellWidth: 'auto' }
+    },
+    willDrawCell: (data) => {
+      if (data.section === 'body' && data.column.index === 3) {
+        if (data.cell.raw && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('http')) {
+          doc.setTextColor(37, 99, 235); // Blue color for links
+        }
+      }
+    },
+    didDrawCell: (data) => {
+      if (data.section === 'body' && data.column.index === 3) {
+        if (data.cell.raw && typeof data.cell.raw === 'string' && data.cell.raw.startsWith('http')) {
+          doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: data.cell.raw });
+        }
+      }
     }
   });
 
