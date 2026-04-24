@@ -340,7 +340,7 @@ export default function App() {
                       <Download size={20} />
                     </button>
                     <button className="btn-add" onClick={() => openModal(category.id, category.name)}>
-                      <Plus size={16} /> Agregar enlace
+                      <Plus size={16} /> Agregar folio
                     </button>
                   </div>
                 </div>
@@ -442,7 +442,7 @@ export default function App() {
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <p>{modal.categoryName}</p>
-                <h3>{modal.mode === 'edit' ? (modal.step === 1 ? 'Editar fecha' : 'Editar enlace') : (modal.step === 1 ? 'Seleccionar carpeta' : 'Agregar enlace')}</h3>
+                <h3>{modal.mode === 'edit' ? (modal.step === 1 ? 'Editar fecha' : 'Editar enlace') : (modal.step === 1 ? 'Seleccionar carpeta' : 'Agregar folio')}</h3>
               </div>
               <button className="btn-icon" onClick={closeModal} disabled={isSaving}>
                 <X size={24} />
