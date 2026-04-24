@@ -22,6 +22,7 @@ type ModalState = {
   url: string;
   observations: string;
   folderDescription: string;
+  folio?: number;
   mode?: 'create' | 'edit';
   linkId?: string;
 };
@@ -55,6 +56,7 @@ export default function App() {
     url: '',
     observations: '',
     folderDescription: '',
+    folio: undefined,
     mode: 'create'
   });
 
@@ -83,10 +85,13 @@ export default function App() {
         const cat = newCategories.find(c => c.id === row.category_id);
         if(!cat) return;
 
-        let period = cat.periods.find(p => p.label === row.period_label);
+        // Group by folio primarily. Fallback to period_label for old items
+        const groupKey = row.folio ? `folio-${row.folio}` : `date-${row.period_label}`;
+
+        let period = cat.periods.find(p => p.id === `folder-${row.category_id}-${groupKey}`);
         if(!period){
           period = {
-            id: `folder-${row.category_id}-${row.period_label}`,
+            id: `folder-${row.category_id}-${groupKey}`,
             label: row.period_label,
             records: []
           };
@@ -100,7 +105,8 @@ export default function App() {
           createdAt: new Date(row.created_at).getTime(),
           folio: row.folio,
           observations: row.observations,
-          folderDescription: row.folder_description
+          folderDescription: row.folder_description,
+          periodLabel: row.period_label
         });
       });
 
@@ -176,6 +182,7 @@ export default function App() {
       url: '',
       observations: '',
       folderDescription: '',
+      folio: undefined,
       mode: 'create'
     });
   };
@@ -206,6 +213,7 @@ export default function App() {
       url: '',
       observations: '',
       folderDescription: desc,
+      folio: folder.records.map(r=>r.folio).filter(Boolean).sort((a,b)=>(a as number)-(b as number))[0] as number | undefined,
       mode: 'create'
     });
   };
@@ -234,6 +242,7 @@ export default function App() {
       url: record.url,
       observations: record.observations || '',
       folderDescription: record.folderDescription || '',
+      folio: record.folio,
       mode: 'edit',
       linkId: record.id
     });
@@ -263,33 +272,40 @@ export default function App() {
     const folderLabel = `${modal.day} ${modal.month} ${modal.year}`;
 
     setIsSaving(true);
+    const payload: any = {
+      category_id: modal.categoryId,
+      period_label: folderLabel,
+      title: modal.docName.trim(),
+      url: finalUrl,
+      observations: modal.observations,
+      folder_description: modal.folderDescription
+    };
+
+    let generatedGroupId = `date-${folderLabel}`;
     let error;
 
     if (modal.mode === 'edit' && modal.linkId) {
-      const { error: updateError } = await supabase.from('service_links').update({
-        category_id: modal.categoryId,
-        period_label: folderLabel,
-        title: modal.docName.trim(),
-        url: finalUrl,
-        observations: modal.observations,
-        folder_description: modal.folderDescription
-      }).eq('id', modal.linkId);
+      const { error: updateError } = await supabase.from('service_links').update(payload).eq('id', modal.linkId);
       error = updateError;
+      if (modal.folio && modal.folio > 0) {
+        generatedGroupId = `folio-${modal.folio}`;
+      }
     } else {
-      const { error: insertError } = await supabase.from('service_links').insert([{
-        category_id: modal.categoryId,
-        period_label: folderLabel,
-        title: modal.docName.trim(),
-        url: finalUrl,
-        observations: modal.observations,
-        folder_description: modal.folderDescription
-      }]);
+      if (modal.folio && modal.folio > 0) {
+        payload.folio = modal.folio;
+      }
+      const { data, error: insertError } = await supabase.from('service_links').insert([payload]).select();
       error = insertError;
+      
+      if (!error && data && data[0]) {
+        const newFolio = data[0].folio;
+        generatedGroupId = newFolio ? `folio-${newFolio}` : `date-${folderLabel}`;
+      }
     }
 
     if (!error) {
       await fetchLinks();
-      setExpandedPeriods(prev => ({ ...prev, [`folder-${modal.categoryId}-${folderLabel}`]: true }));
+      setExpandedPeriods(prev => ({ ...prev, [`folder-${modal.categoryId}-${generatedGroupId}`]: true }));
       closeModal();
     } else {
       console.error("Error saving link", error);
@@ -439,7 +455,7 @@ export default function App() {
                                   <div key={record.id} className="link-item">
                                     <div className="link-info" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                       <div className="link-title">
-                                        <span style={{ color: 'var(--text-light)', marginRight: '6px', fontWeight: '500' }}>{folder.label} -</span>
+                                        <span style={{ color: 'var(--text-light)', marginRight: '6px', fontWeight: '500' }}>{record.periodLabel || folder.label} -</span>
                                         {record.title}
                                       </div>
                                       <div className="link-url">{displayUrl}</div>
