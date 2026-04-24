@@ -357,7 +357,10 @@ export default function App() {
                             <div className="folder-title">
                               {folder.label}
                               <span className="folder-folios" style={{ marginLeft: '1rem', color: 'var(--primary)', backgroundColor: 'var(--border-dark)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.85rem' }}>
-                                Folio(s): {folder.records.filter(r => r.folio).map(r => String(r.folio).padStart(4, '0')).join(', ') || 'N/A'}
+                                {(() => {
+                                  const f = folder.records.map(r=>r.folio).filter(Boolean).sort((a,b)=>(a as number)-(b as number))[0];
+                                  return `Folio(s): ${f ? String(f).padStart(4, '0') : 'N/A'}`;
+                                })()}
                               </span>
                             </div>
                             <span className="folder-count">{numLinks} {numLinks === 1 ? 'enlace' : 'enlaces'}</span>
@@ -371,7 +374,6 @@ export default function App() {
                                   <div key={record.id} className="link-item">
                                     <div className="link-info" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                       <div className="link-title">
-                                        <span style={{color: 'var(--text-light)', fontWeight: 'bold', marginRight: '0.5rem'}}>#{record.folio ? String(record.folio).padStart(4, '0') : '...'}</span>
                                         {record.title}
                                       </div>
                                       <div className="link-url">{displayUrl}</div>
