@@ -5,6 +5,7 @@ export type LinkRecord = {
   createdAt: number;
   folio?: number;
   observations?: string;
+  folderDescription?: string;
 };
 
 export type PeriodFolder = {

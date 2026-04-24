@@ -21,6 +21,7 @@ type ModalState = {
   docName: string;
   url: string;
   observations: string;
+  folderDescription: string;
   mode?: 'create' | 'edit';
   linkId?: string;
 };
@@ -53,6 +54,7 @@ export default function App() {
     docName: '',
     url: '',
     observations: '',
+    folderDescription: '',
     mode: 'create'
   });
 
@@ -97,7 +99,8 @@ export default function App() {
           url: row.url,
           createdAt: new Date(row.created_at).getTime(),
           folio: row.folio,
-          observations: row.observations
+          observations: row.observations,
+          folderDescription: row.folder_description
         });
       });
 
@@ -172,6 +175,7 @@ export default function App() {
       docName: '',
       url: '',
       observations: '',
+      folderDescription: '',
       mode: 'create'
     });
   };
@@ -199,6 +203,7 @@ export default function App() {
       docName: record.title,
       url: record.url,
       observations: record.observations || '',
+      folderDescription: record.folderDescription || '',
       mode: 'edit',
       linkId: record.id
     });
@@ -236,7 +241,8 @@ export default function App() {
         period_label: folderLabel,
         title: modal.docName.trim(),
         url: finalUrl,
-        observations: modal.observations
+        observations: modal.observations,
+        folder_description: modal.folderDescription
       }).eq('id', modal.linkId);
       error = updateError;
     } else {
@@ -245,7 +251,8 @@ export default function App() {
         period_label: folderLabel,
         title: modal.docName.trim(),
         url: finalUrl,
-        observations: modal.observations
+        observations: modal.observations,
+        folder_description: modal.folderDescription
       }]);
       error = insertError;
     }
@@ -362,6 +369,13 @@ export default function App() {
                                   return `Folio(s): ${f ? String(f).padStart(4, '0') : 'N/A'}`;
                                 })()}
                               </span>
+                              {(() => {
+                                const desc = folder.records.map(r=>r.folderDescription).filter(Boolean)[0];
+                                if (desc) {
+                                  return <span style={{ marginLeft: '0.75rem', color: 'var(--text)', fontSize: '0.95rem', fontWeight: 500, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '4px' }}>{desc}</span>;
+                                }
+                                return null;
+                              })()}
                             </div>
                             <button 
                               className="btn-icon" 
@@ -475,6 +489,17 @@ export default function App() {
                         </select>
                       </div>
                     </div>
+                  </div>
+                  <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                    <label>Título de la Solicitud (Opcional)</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Ej. Envío de documentación mensual..."
+                      value={modal.folderDescription}
+                      onChange={e => setModal({...modal, folderDescription: e.target.value})}
+                    />
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '4px' }}>Este texto aparecerá al costado del folio en la carpeta principal.</p>
                   </div>
                   
                   <div className="modal-footer">
