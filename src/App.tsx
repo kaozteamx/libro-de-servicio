@@ -362,8 +362,7 @@ export default function App() {
                             {isExpanded ? <ChevronDown size={18} color="#9CA3AF" /> : <ChevronRight size={18} color="#9CA3AF" />}
                             <FolderOpen size={20} color="var(--folder-icon)" strokeWidth={2.5} />
                             <div className="folder-title">
-                              {folder.label}
-                              <span className="folder-folios" style={{ marginLeft: '1rem', color: 'var(--primary)', backgroundColor: 'var(--border-dark)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                              <span className="folder-folios" style={{ color: 'var(--primary)', backgroundColor: 'var(--border-dark)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.85rem' }}>
                                 {(() => {
                                   const f = folder.records.map(r=>r.folio).filter(Boolean).sort((a,b)=>(a as number)-(b as number))[0];
                                   return `Folio(s): ${f ? String(f).padStart(4, '0') : 'N/A'}`;
@@ -399,6 +398,7 @@ export default function App() {
                                   <div key={record.id} className="link-item">
                                     <div className="link-info" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                       <div className="link-title">
+                                        <span style={{ color: 'var(--text-light)', marginRight: '6px', fontWeight: '500' }}>{folder.label} -</span>
                                         {record.title}
                                       </div>
                                       <div className="link-url">{displayUrl}</div>
