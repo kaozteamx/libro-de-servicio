@@ -198,7 +198,7 @@ export default function App() {
       isOpen: true,
       categoryId,
       categoryName,
-      step: 2, // Skip straight to data entry
+      step: 1, // Let user confirm or change the Date
       day,
       month,
       year,
