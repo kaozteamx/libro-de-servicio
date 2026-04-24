@@ -470,7 +470,7 @@ export default function App() {
                               <span className="folder-folios" style={{ color: 'var(--primary)', backgroundColor: 'var(--border-dark)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.85rem' }}>
                                 {(() => {
                                   const f = folder.records.map(r=>r.folio).filter(Boolean).sort((a,b)=>(a as number)-(b as number))[0];
-                                  return `Folio(s): ${f ? String(f).padStart(4, '0') : 'N/A'}`;
+                                  return `Folio: ${f ? String(f).padStart(4, '0') : 'N/A'}`;
                                 })()}
                               </span>
                               {(() => {
