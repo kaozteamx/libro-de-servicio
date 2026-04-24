@@ -154,6 +154,30 @@ export default function App() {
     fetchLinks();
   }, []);
 
+  const handleDragDropMove = async (linkId: string, targetCategoryId: string, targetFolio?: number, targetDesc?: string) => {
+    setIsSaving(true);
+    const payload: any = { category_id: targetCategoryId };
+    if (targetFolio && targetFolio > 0) {
+      payload.folio = targetFolio;
+    }
+    if (targetDesc !== undefined) {
+      payload.folder_description = targetDesc;
+    }
+
+    const { error } = await supabase.from('service_links').update(payload).eq('id', linkId);
+    if (!error) {
+      await fetchLinks();
+      const groupKeyForExpansion = targetFolio ? `folio-${targetFolio}` : '';
+      if (groupKeyForExpansion) {
+        setExpandedPeriods(prev => ({ ...prev, [`folder-${targetCategoryId}-${groupKeyForExpansion}`]: true }));
+      }
+    } else {
+      console.error(error);
+      alert('Error moviendo enlace');
+    }
+    setIsSaving(false);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('libro_de_servicio_user');
     setCurrentUser(null);
@@ -404,7 +428,42 @@ export default function App() {
                       
                       return (
                         <div key={folder.id} className="folder-item">
-                          <div className="folder-header" onClick={() => togglePeriod(folder.id)}>
+                          <div 
+                            className="folder-header" 
+                            onClick={() => togglePeriod(folder.id)}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.backgroundColor = 'var(--bg-color)';
+                              e.currentTarget.style.border = '2px dashed var(--primary)';
+                            }}
+                            onDragLeave={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.backgroundColor = '';
+                              e.currentTarget.style.border = '';
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.currentTarget.style.backgroundColor = '';
+                              e.currentTarget.style.border = '';
+                              
+                              try {
+                                const dataStr = e.dataTransfer.getData('application/json');
+                                if (!dataStr) return;
+                                const data = JSON.parse(dataStr);
+                                
+                                const targetFolio = folder.records.map(r=>r.folio).filter(Boolean).sort((a,b)=>(a as number)-(b as number))[0] as number | undefined;
+                                const targetDesc = folder.records.map(r=>r.folderDescription).filter(Boolean)[0] || '';
+                                
+                                // Solamente mover si son distintos folios (o sea, agrupaciones distintas)
+                                if (data.linkId && targetFolio && data.sourceFolio !== targetFolio) {
+                                  handleDragDropMove(data.linkId, category.id, targetFolio, targetDesc);
+                                }
+                              } catch(err) {
+                                console.error(err);
+                              }
+                            }}
+                          >
                             {isExpanded ? <ChevronDown size={18} color="#9CA3AF" /> : <ChevronRight size={18} color="#9CA3AF" />}
                             <FolderOpen size={20} color="var(--folder-icon)" strokeWidth={2.5} />
                             <div className="folder-title">
@@ -452,7 +511,21 @@ export default function App() {
                               {folder.records.map(record => {
                                 const displayUrl = record.url.replace(/^https?:\/\/(www\.)?/, '');
                                 return (
-                                  <div key={record.id} className="link-item">
+                                  <div 
+                                    key={record.id} 
+                                    className="link-item"
+                                    draggable
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData('application/json', JSON.stringify({ 
+                                        linkId: record.id, 
+                                        sourceFolio: record.folio 
+                                      }));
+                                      e.currentTarget.style.opacity = '0.5';
+                                    }}
+                                    onDragEnd={(e) => {
+                                      e.currentTarget.style.opacity = '1';
+                                    }}
+                                  >
                                     <div className="link-info" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                       <div className="link-title">
                                         <span style={{ color: 'var(--text-light)', marginRight: '6px', fontWeight: '500' }}>{record.periodLabel || folder.label} -</span>
