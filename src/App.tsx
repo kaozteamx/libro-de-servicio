@@ -180,6 +180,36 @@ export default function App() {
     });
   };
 
+  const openModalForFolder = (categoryId: string, categoryName: string, folder: PeriodFolder) => {
+    const parts = folder.label.split(' ');
+    let day = '01', month = 'Enero', year = '2026';
+    if(parts.length === 3) {
+      day = parts[0].padStart(2, '0');
+      month = parts[1];
+      year = parts[2];
+    } else if(parts.length === 2) {
+      month = parts[0];
+      year = parts[1];
+    }
+    
+    const desc = folder.records.map(r=>r.folderDescription).filter(Boolean)[0] || '';
+
+    setModal({
+      isOpen: true,
+      categoryId,
+      categoryName,
+      step: 2, // Skip straight to data entry
+      day,
+      month,
+      year,
+      docName: '',
+      url: '',
+      observations: '',
+      folderDescription: desc,
+      mode: 'create'
+    });
+  };
+
   const openEditModal = (record: any, folderLabel: string, categoryId: string, categoryName: string) => {
     const parts = folderLabel.split(' ');
     let day = '01', month = 'Enero', year = '2026';
@@ -376,6 +406,17 @@ export default function App() {
                                 return null;
                               })()}
                             </div>
+                            <button 
+                              className="btn-icon" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModalForFolder(category.id, category.name, folder);
+                              }} 
+                              style={{ marginRight: '0.5rem', color: 'var(--primary)', border: '2px solid var(--border)', borderRadius: '6px', padding: '4px', display: 'flex', alignItems: 'center' }} 
+                              title="Agregar otro folio a esta carpeta"
+                            >
+                              <Plus size={16} />
+                            </button>
                             <button 
                               className="btn-icon" 
                               onClick={(e) => {
