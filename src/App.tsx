@@ -363,6 +363,17 @@ export default function App() {
                                 })()}
                               </span>
                             </div>
+                            <button 
+                              className="btn-icon" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExportModal({isOpen: true, categoryId: category.id, categoryName: `${category.name} - ${folder.label}`, periods: [folder]});
+                              }} 
+                              style={{ marginRight: '0.5rem', color: '#e74c3c', border: '2px solid var(--border)', borderRadius: '6px', padding: '4px', display: 'flex', alignItems: 'center' }} 
+                              title="Exportar esta carpeta"
+                            >
+                              <Download size={16} />
+                            </button>
                             <span className="folder-count">{numLinks} {numLinks === 1 ? 'enlace' : 'enlaces'}</span>
                           </div>
 
