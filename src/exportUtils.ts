@@ -20,7 +20,7 @@ export const exportToPDF = (categoryName: string, periods: PeriodFolder[]) => {
       const folioStr = record.folio ? `#${String(record.folio).padStart(4, '0')}` : 'N/A';
       tableData.push([
         folioStr,
-        folder.label,
+        record.periodLabel || folder.label,
         record.title,
         record.url,
         record.observations || ''
@@ -67,7 +67,7 @@ export const exportToExcel = (categoryName: string, periods: PeriodFolder[]) => 
     for (const record of folder.records) {
       excelData.push({
         'Folio': record.folio ? `#${String(record.folio).padStart(4, '0')}` : 'N/A',
-        'Período': folder.label,
+        'Período': record.periodLabel || folder.label,
         'Documento': record.title,
         'Enlace': record.url,
         'Observaciones': record.observations || ''
