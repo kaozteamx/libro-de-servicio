@@ -628,7 +628,20 @@ export default function App() {
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <p>{modal.categoryName}</p>
-                <h3>{modal.mode === 'edit' ? (modal.step === 1 ? 'Editar fecha' : 'Editar enlace') : (modal.step === 1 ? 'Seleccionar carpeta' : 'Agregar folio')}</h3>
+                <h3>
+                  {(() => {
+                    if (modal.mode === 'edit') return modal.step === 1 ? 'Editar fecha' : 'Editar enlace';
+                    if (modal.step === 1) {
+                      if (modal.folio) return `Agregar a Folio: ${String(modal.folio).padStart(4, '0')}`;
+                      let maxF = 0;
+                      categories.forEach(c => c.periods.forEach(p => p.records.forEach(r => {
+                        if (r.folio && r.folio > maxF) maxF = r.folio;
+                      })));
+                      return `Nuevo Folio: ${String(maxF + 1).padStart(4, '0')}`;
+                    }
+                    return 'Detalles del documento';
+                  })()}
+                </h3>
               </div>
               <button className="btn-icon" onClick={closeModal} disabled={isSaving}>
                 <X size={24} />
@@ -690,7 +703,7 @@ export default function App() {
                   
                   <div className="modal-footer">
                     <button className="btn-block btn-dark" onClick={handleNextStep}>
-                      Crear carpeta y continuar
+                      {modal.folio ? 'Continuar' : 'Crear carpeta y continuar'}
                     </button>
                   </div>
                 </>
