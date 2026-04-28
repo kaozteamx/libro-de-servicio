@@ -5,6 +5,9 @@ create table public.service_links (
   period_label text not null, -- ej. 'Abril 2026'
   title text not null,
   url text not null,
+  folio serial,
+  folder_description text,
+  observations text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -116,3 +119,45 @@ BEGIN
   RETURN FOUND;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- Función: Admin actualiza el rol de un usuario (admin, user, viewer)
+CREATE OR REPLACE FUNCTION public.update_user_role(
+  p_admin_user text,
+  p_admin_pass text,
+  p_target_user text,
+  p_new_role text
+) RETURNS boolean AS $$
+DECLARE
+  v_is_admin boolean;
+BEGIN
+  SELECT (role = 'admin') INTO v_is_admin
+  FROM public.app_users
+  WHERE username = p_admin_user AND password_hash = crypt(p_admin_pass, password_hash);
+
+  IF NOT coalesce(v_is_admin, false) THEN
+    RETURN false;
+  END IF;
+
+  -- No permitir cambiar el rol del propio admin
+  IF p_target_user = 'admin' THEN
+    RETURN false;
+  END IF;
+
+  UPDATE public.app_users
+  SET role = p_new_role
+  WHERE username = p_target_user;
+
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- -------------------------------------------------------------
+-- USUARIOS ESPECIALES: Solo visualización (viewer)
+-- Ejecutar este bloque para crear control_lascondes como viewer
+-- -------------------------------------------------------------
+-- PASO 1: El usuario ya fue creado con create_new_user (rol 'user')
+-- PASO 2: Ejecutar esta función para cambiar su rol a 'viewer':
+-- SELECT public.update_user_role('admin', 'CHANGE_ME_ADMIN_PASSWORD', 'control_lascondes', 'viewer');
+

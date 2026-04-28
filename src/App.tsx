@@ -30,6 +30,9 @@ type ModalState = {
 export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  // Usuario de solo lectura: rol 'viewer' no puede agregar, editar ni eliminar
+  const isReadOnly = currentUser?.role === 'viewer';
   
   const [categories, setCategories] = useState<Category[]>(INITIAL_DATA);
   const [loading, setLoading] = useState(true);
@@ -463,9 +466,11 @@ export default function App() {
                     <button className="btn-icon" onClick={() => setExportModal({isOpen: true, categoryId: category.id, categoryName: category.name, periods: category.periods})} style={{ border: '2px solid var(--border)', borderRadius: '8px', padding: '6px', color: '#e74c3c' }} title="Exportar Documentos">
                       <Download size={20} />
                     </button>
-                    <button className="btn-add" onClick={() => openModal(category.id, category.name)}>
-                      <Plus size={16} /> Agregar folio
-                    </button>
+                    {!isReadOnly && (
+                      <button className="btn-add" onClick={() => openModal(category.id, category.name)}>
+                        <Plus size={16} /> Agregar folio
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -486,16 +491,19 @@ export default function App() {
                             className="folder-header" 
                             onClick={() => togglePeriod(folder.id)}
                             onDragOver={(e) => {
+                              if (isReadOnly) return;
                               e.preventDefault();
                               e.currentTarget.style.backgroundColor = 'var(--bg-color)';
                               e.currentTarget.style.border = '2px dashed var(--primary)';
                             }}
                             onDragLeave={(e) => {
+                              if (isReadOnly) return;
                               e.preventDefault();
                               e.currentTarget.style.backgroundColor = '';
                               e.currentTarget.style.border = '';
                             }}
                             onDrop={(e) => {
+                              if (isReadOnly) return;
                               e.preventDefault();
                               e.stopPropagation();
                               e.currentTarget.style.backgroundColor = '';
@@ -535,17 +543,19 @@ export default function App() {
                                 return null;
                               })()}
                             </div>
-                            <button 
-                              className="btn-icon" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openModalForFolder(category.id, category.name, folder);
-                              }} 
-                              style={{ marginRight: '0.5rem', color: 'var(--primary)', border: '2px solid var(--border)', borderRadius: '6px', padding: '4px', display: 'flex', alignItems: 'center' }} 
-                              title="Agregar otro folio a esta carpeta"
-                            >
-                              <Plus size={16} />
-                            </button>
+                            {!isReadOnly && (
+                              <button 
+                                className="btn-icon" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openModalForFolder(category.id, category.name, folder);
+                                }} 
+                                style={{ marginRight: '0.5rem', color: 'var(--primary)', border: '2px solid var(--border)', borderRadius: '6px', padding: '4px', display: 'flex', alignItems: 'center' }} 
+                                title="Agregar otro folio a esta carpeta"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            )}
                             <button 
                               className="btn-icon" 
                               onClick={(e) => {
@@ -568,8 +578,12 @@ export default function App() {
                                   <div 
                                     key={record.id} 
                                     className="link-item"
-                                    draggable
+                                    draggable={!isReadOnly}
                                     onDragStart={(e) => {
+                                      if (isReadOnly) {
+                                        e.preventDefault();
+                                        return;
+                                      }
                                       e.dataTransfer.setData('application/json', JSON.stringify({ 
                                         linkId: record.id, 
                                         sourceFolio: record.folio 
@@ -593,15 +607,19 @@ export default function App() {
                                       )}
                                     </div>
                                     <div className="link-actions">
-                                      <button onClick={() => openEditModal(record, folder.label, category.id, category.name)} className="btn-icon" title="Editar">
-                                        <Pencil size={18} />
-                                      </button>
+                                      {!isReadOnly && (
+                                        <button onClick={() => openEditModal(record, folder.label, category.id, category.name)} className="btn-icon" title="Editar">
+                                          <Pencil size={18} />
+                                        </button>
+                                      )}
                                       <a href={record.url} target="_blank" rel="noopener noreferrer" className="btn-icon" title="Abrir enlace">
                                         <ExternalLink size={18} />
                                       </a>
-                                      <button onClick={() => deleteLink(record.id)} className="btn-icon danger" title="Eliminar">
-                                        <Trash2 size={18} />
-                                      </button>
+                                      {!isReadOnly && (
+                                        <button onClick={() => deleteLink(record.id)} className="btn-icon danger" title="Eliminar">
+                                          <Trash2 size={18} />
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 );
