@@ -5,17 +5,36 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Ping Supabase API
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           echo "Realizando petición a Supabase para mantener la BD activa..."
-          curl -s -o /dev/null -w "%{http_code}" "${SUPABASE_URL}/rest/v1/service_links?select=id&limit=1" \
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${SUPABASE_URL}/rest/v1/service_links?select=id&limit=1" \
           -H "apikey: ${SUPABASE_ANON_KEY}" \
-          -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
-          echo -e "\nPing completado."
+          -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo -e "\nPing completado. HTTP $HTTP_CODE"
+          echo "HTTP_CODE=$HTTP_CODE" >> "$GITHUB_ENV"
+
+      # GitHub deshabilita automáticamente los workflows con `schedule` tras 60 días
+      # sin actividad de push en el repo. Este commit mantiene esa actividad viva
+      # para que el cron nunca se apague solo, sin depender de servicios externos.
+      - name: Registrar último ping (mantiene el repo "activo" para GitHub)
+        run: |
+          mkdir -p .github
+          echo "Último ping: $(date -u +'%Y-%m-%dT%H:%M:%SZ') UTC — HTTP $HTTP_CODE" > .github/last-ping.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last-ping.txt
+          git diff --cached --quiet || git commit -m "chore: registrar ping automático a Supabase [skip ci]"
+          git push
